@@ -8,6 +8,7 @@ urlpatterns = [
     path('api/', include([
         path('auth/', include('authentication.urls')),
         path('users/', include('users.urls')),
+        path('players/', include('players.urls')),
     ])),
 ]
 

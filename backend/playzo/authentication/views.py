@@ -1,140 +1,73 @@
-from rest_framework import status
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenVerifySerializer
+
+from users.serializers import UserSerializer
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
-from django.middleware.csrf import get_token
-
-from datetime import timedelta
-
-from users.models import User
-from users.serializers import UserSerializer
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=4),
-    "REFRESH_TOKEN_LIFETIME": timedelta(hours=12),
-    'BLACKLIST_AFTER_ROTATION': True,
-
-    # custom
-    "AUTH_COOKIE": "access_token",
-    "REFRESH_COOKIE": "refresh_token",
-    "AUTH_COOKIE_DOMAIN": None,
-    "AUTH_COOKIE_SECURE": True,
-    "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_PATH": "/",
-    "AUTH_COOKIE_SAMESITE": "None",
-}
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils.translation import gettext_lazy as _
 
 
-def set_response_cookies(access_token, refresh_token, request, response):
-    access_token_lifetime = SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"]
-    refresh_token_lifetime = SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"]
+class LoginView(APIView):
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
 
-    response.set_cookie(
-        key=SIMPLE_JWT["AUTH_COOKIE"],
-        value=access_token,
-        domain=SIMPLE_JWT["AUTH_COOKIE_DOMAIN"],
-        path=SIMPLE_JWT["AUTH_COOKIE_PATH"],
-        max_age=int(access_token_lifetime.total_seconds()),
-        secure=SIMPLE_JWT["AUTH_COOKIE_SECURE"],
-        httponly=SIMPLE_JWT["AUTH_COOKIE_HTTP_ONLY"],
-        samesite=SIMPLE_JWT["AUTH_COOKIE_SAMESITE"],
-    )
+        if not username or not password:
+            return Response({"detail": _("Username and password are required.")},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-    response.set_cookie(
-        key=SIMPLE_JWT["REFRESH_COOKIE"],
-        value=refresh_token,
-        domain=SIMPLE_JWT["AUTH_COOKIE_DOMAIN"],
-        path=SIMPLE_JWT["AUTH_COOKIE_PATH"],
-        max_age=int(refresh_token_lifetime.total_seconds()),
-        secure=SIMPLE_JWT["AUTH_COOKIE_SECURE"],
-        httponly=SIMPLE_JWT["AUTH_COOKIE_HTTP_ONLY"],
-        samesite=SIMPLE_JWT["AUTH_COOKIE_SAMESITE"],
-    )
+        user = authenticate(username=username, password=password)
 
-    get_token(request)
+        if user is None:
+            return Response({"detail": _("Invalid username or password.")},
+                            status=status.HTTP_401_UNAUTHORIZED)
 
+        refresh = RefreshToken.for_user(user)
 
-class CustomTokenObtainPairView(TokenObtainPairView):
-    def post(self, request, *args, **kwargs) -> Response:
-        response = super().post(request, *args, **kwargs)
-        access_token = response.data["access"]
-        refresh_token = response.data["refresh"]
-        set_response_cookies(access_token, refresh_token, request, response)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = User.objects.get(username=serializer.initial_data["username"])
-
-        response.data["user"] = UserSerializer(user, context={"request": request}).data
-        return response
+        return Response({
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "player_id": user.player.id if hasattr(user, "player") else None,
+            "username": user.username,
+        }, status=status.HTTP_200_OK)
 
 
 class CustomTokenRefreshView(TokenRefreshView):
-    def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get("refresh_token")
-
-        if not refresh_token:
-            return Response({"detail": "Refresh token not provided."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            token = RefreshToken(refresh_token)
-            access_token = str(token.access_token)
-            new_refresh_token = str(token)
-
-            # Prepare the response
-            response = Response({"access": access_token, "refresh": new_refresh_token})
-
-            set_response_cookies(access_token, new_refresh_token, request, response)
-
-            return response
-
-        except Exception as e:
-            return Response({"detail": "Invalid refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
-
-
-class CustomTokenVerifyView(APIView):
-    def get(self, request, *args, **kwargs):
-        access_token = request.COOKIES.get("access_token")
-        if not access_token:
-            return Response({"detail": "Access token not provided."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        try:
-            AccessToken(access_token)
-            return Response({}, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({
-                "detail": "Token is invalid or expired",
-                "code": "token_not_valid"}, status=status.HTTP_401_UNAUTHORIZED)
-
-
-class LogoutView(APIView):
+    """
+    Accepts a refresh token and returns a new access token.
+    """
     permission_classes = [AllowAny]
-    authentication_classes = []
+    serializer_class = TokenRefreshSerializer
 
-    def post(self, request):
-        response = Response({"message": "Logged out successfully"})
-        response.delete_cookie(
-            key=SIMPLE_JWT['AUTH_COOKIE'],
-            path=SIMPLE_JWT['AUTH_COOKIE_PATH'],
-            domain=SIMPLE_JWT['AUTH_COOKIE_DOMAIN'],
-            samesite=SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
-        )
-        response.delete_cookie(
-            key=SIMPLE_JWT['REFRESH_COOKIE'],
-            path=SIMPLE_JWT['AUTH_COOKIE_PATH'],
-            domain=SIMPLE_JWT['AUTH_COOKIE_DOMAIN'],
-            samesite=SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
-        )
-        response.delete_cookie(
-            key="csrftoken",
-            path=SIMPLE_JWT['AUTH_COOKIE_PATH'],
-            domain=SIMPLE_JWT['AUTH_COOKIE_DOMAIN'],
-            samesite=SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
-        )
-        return response
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response({"detail": "Invalid or expired refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class CustomTokenVerifyView(TokenVerifyView):
+    """
+    Accepts a token and verifies if it is valid.
+    """
+    permission_classes = [AllowAny]
+    serializer_class = TokenVerifySerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response({"detail": "Token is invalid or expired."}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response({"detail": "Token is valid"}, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
