@@ -53,7 +53,10 @@ class LoginView(APIView):
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response({"error": _("Invalid username or password")}, status=status.HTTP_400_BAD_REQUEST)
 
         tokens = serializer.save()
 
