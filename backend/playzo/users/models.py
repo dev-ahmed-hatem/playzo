@@ -23,19 +23,16 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    class Role(models.TextChoices):
-        manager = "مدير", _("مدير")
-        moderator = "مشرف", _("مشرف")
 
     name = models.CharField(max_length=100, default="")
     username = models.CharField(max_length=20, unique=True, error_messages={
         "unique": _("اسم المستخدم موجود بالفعل")
     })
-    role = models.CharField(max_length=20, choices=Role.choices, default=Role.moderator)
 
     is_active = models.BooleanField(default=True)
 
     is_superuser = models.BooleanField(default=False)
+    is_moderator = models.BooleanField(default=False)
 
     objects = UserManager()
 

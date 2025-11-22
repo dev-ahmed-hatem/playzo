@@ -1,11 +1,14 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from users.models import User
 
 
 class Player(models.Model):
     class Gender(models.TextChoices):
         MALE = "M", _("Male")
         FEMALE = "F", _("Female")
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="player")
 
     name = models.CharField(max_length=100, verbose_name=_("Name"))
     birthdate = models.DateField(null=True, blank=True, verbose_name=_("Birthdate"))

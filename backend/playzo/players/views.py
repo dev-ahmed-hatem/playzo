@@ -9,9 +9,14 @@ class PlayerViewSet(viewsets.ModelViewSet):
     queryset = Player.objects.all()
 
     def get_serializer_class(self):
-        if self.action in ["update", "partial_update"]:
+        if self.action in ["create", "update", "partial_update"]:
             return PlayerWriteSerializer
         return PlayerReadSerializer
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update"]:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.IsAuthenticated])
     def me(self, request):

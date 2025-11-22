@@ -12,30 +12,52 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils.translation import gettext_lazy as _
 
+from rest_framework import serializers
 
-class LoginView(APIView):
-    def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
+
+    def validate(self, data):
+        username = data.get("username")
+        password = data.get("password")
 
         if not username or not password:
-            return Response({"detail": _("Username and password are required.")},
-                            status=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError(_("Username and password are required."))
 
         user = authenticate(username=username, password=password)
 
         if user is None:
-            return Response({"detail": _("Invalid username or password.")},
-                            status=status.HTTP_401_UNAUTHORIZED)
+            raise serializers.ValidationError(_("Invalid username or password."))
 
+        data["user"] = user
+        return data
+
+    def create(self, validated_data):
+        user = validated_data["user"]
         refresh = RefreshToken.for_user(user)
 
-        return Response({
+        return {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "player_id": user.player.id if hasattr(user, "player") else None,
             "username": user.username,
-        }, status=status.HTTP_200_OK)
+        }
+
+
+class LoginView(APIView):
+    serializer_class = LoginSerializer
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tokens = serializer.save()
+
+        return Response(tokens, status=status.HTTP_200_OK)
 
 
 class CustomTokenRefreshView(TokenRefreshView):

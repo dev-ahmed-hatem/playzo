@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Player
 from users.serializers import UserSerializer
 from users.models import User
+from django.db import transaction
 
 
 class PlayerReadSerializer(serializers.ModelSerializer):
@@ -35,18 +36,27 @@ class PlayerWriteSerializer(serializers.ModelSerializer):
             "gender",
             "phone",
             "photo",
+            "email",
         ]
 
+    def validate_username(self, value):
+        try:
+            User.objects.get(username=value)
+            raise serializers.ValidationError("Username already exists")
+        except User.DoesNotExist:
+            return value
+
+    @transaction.atomic
     def create(self, validated_data):
         username = validated_data.pop("username")
         password = validated_data.pop("password")
 
         user = User.objects.create(username=username)
-        user.set_password(password)  # hash the password
+        user.set_password(password)
         user.save()
 
-        # Create the Player linked to this user
-        player = Player.objects.create(user=user, **validated_data)
+        validated_data["user"] = user
+        player = super().create(validated_data)
         return player
 
     def update(self, instance, validated_data):
