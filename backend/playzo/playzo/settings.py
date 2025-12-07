@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'authentication.apps.AuthenticationConfig',
     'users.apps.UsersConfig',
     'players.apps.PlayersConfig',
-    # 'financials.apps.FinancialsConfig',
+    'offers.apps.OffersConfig',
     # 'projects.apps.ProjectsConfig',
     # 'attendance.apps.AttendanceConfig',
 ]
