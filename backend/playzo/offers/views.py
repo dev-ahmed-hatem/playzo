@@ -8,6 +8,20 @@ from .serializers import OfferSerializer, OfferWriteSerializer
 from django.conf import settings
 from datetime import datetime
 
+from drf_spectacular.utils import (
+    extend_schema,
+    OpenApiParameter,
+    OpenApiTypes,
+    OpenApiResponse
+)
+
+COMMON_FILTER_PARAMS = [
+    OpenApiParameter("type", OpenApiTypes.STR, description="Filter by offer type"),
+    OpenApiParameter("is_featured", OpenApiTypes.BOOL, description="True/False"),
+    OpenApiParameter("is_exclusive", OpenApiTypes.BOOL, description="True/False"),
+    OpenApiParameter("is_active", OpenApiTypes.BOOL, description="True/False"),
+]
+
 
 class OfferViewSet(viewsets.ModelViewSet):
     """
@@ -93,6 +107,12 @@ class OfferViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("type", OpenApiTypes.STR, description="Filter by offer type"),
+            OpenApiParameter("is_featured", OpenApiTypes.BOOL, description="True/False"),
+        ]
+    )
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def active(self, request):
         """
@@ -120,6 +140,11 @@ class OfferViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(active_offers, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("type", OpenApiTypes.STR, description="Filter by offer type")
+        ]
+    )
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def featured(self, request):
         """
@@ -196,6 +221,12 @@ class OfferViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("type", OpenApiTypes.STR, description="Filter by offer type"),
+            OpenApiParameter("is_featured", OpenApiTypes.BOOL, description="True/False"),
+        ]
+    )
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def upcoming(self, request):
         """
@@ -222,6 +253,11 @@ class OfferViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(upcoming_offers, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("type", OpenApiTypes.STR, description="Filter by offer type")
+        ]
+    )
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAdminUser])
     def expired(self, request):
         """
