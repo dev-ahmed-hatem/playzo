@@ -11,13 +11,13 @@ from datetime import datetime
 
 class OfferViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing offers (view-only for regular users)
+    ViewSet for managing offers
     """
     queryset = Offer.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'start_date', 'end_date']
-    ordering = ['-is_featured', '-created_at']  # Default ordering
+    ordering = ['-is_featured', '-created_at']
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

@@ -16,7 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-!9n1vr75qowg1fl3j6te@ukrvd^%)y4_m0vd_sed$olka*mt#3'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['10.0.2.2', '127.0.0.1', 'localhost', 'playzo.pythonanywhere.com']
 
@@ -35,12 +35,14 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
 
+    # openapi
+    'drf_spectacular',
+    'drf_spectacular_sidecar',
+
     'authentication.apps.AuthenticationConfig',
     'users.apps.UsersConfig',
     'players.apps.PlayersConfig',
     'offers.apps.OffersConfig',
-    # 'projects.apps.ProjectsConfig',
-    # 'attendance.apps.AttendanceConfig',
 ]
 
 MIDDLEWARE = [
@@ -141,12 +143,15 @@ AUTH_USER_MODEL = 'users.User'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'authentication.authentication.BaseAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'playzo.rest_framework_utils.custom_pagination.CustomPageNumberPagination'
+    'DEFAULT_PAGINATION_CLASS': 'playzo.rest_framework_utils.custom_pagination.CustomPageNumberPagination',
+
+    # openapi
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # simple jwt:
@@ -171,3 +176,60 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 # CSRF_COOKIE_SAMESITE = 'Lax'
 # CSRF_COOKIE_SECURE = True
 # CSRF_COOKIE_HTTPONLY = True
+
+
+# Spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Playzo API Documentation',
+    'DESCRIPTION': """
+    # Complete API Documentation
+
+    Welcome to the API documentation for the Flutter application.
+
+    ## 🔐 Authentication
+    Most endpoints require JWT authentication. Include the token in the header:
+    ```
+    Authorization: Bearer <your_jwt_token>
+    ```
+
+    ## 🌐 Base URL
+    ```
+    https://playzo.pythonanywhere.com/api/
+    ```
+
+    ## 📝 Quick Start
+    1. Get your JWT token from authentication endpoints
+    2. Use it in the Authorization header
+    3. Explore endpoints below
+
+    ## 📊 Rate Limits
+    - Public endpoints: 100 requests/hour
+    - Authenticated: 1000 requests/hour
+    - Admin endpoints: 5000 requests/hour
+
+    ## 🔍 Common Query Parameters
+    | Parameter | Description | Example |
+    |-----------|-------------|---------|
+    | `search` | Full-text search | `?search=futsal` |
+    | `ordering` | Sort results | `?ordering=-created_at` |
+    | `limit` | Pagination limit | `?limit=10` |
+    | `offset` | Pagination offset | `?offset=20` |
+
+    ## 📞 Support
+    - Email: kaffo2024@gmail.com
+    - Slack: #api-support
+    """,
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': True,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'filter': True,
+        'tagsSorter': 'alpha',
+        'operationsSorter': 'alpha',
+    },
+    'COMPONENT_SPLIT_REQUEST': True,  # Better request body documentation
+    'SCHEMA_PATH_PREFIX': r'/api/',  # API prefix
+    'SCHEMA_COERCE_PATH_PK_SUFFIX': True,  # Convert {id} to pk
+}
